@@ -11,9 +11,42 @@ if [ -z "$new_ref" ]; then
 fi
 
 files_changed=`git diff $old_ref $new_ref --name-status`
+warning=""
+
+# CHECK IF WE NEED TO RELOAD RVM
+# ONLY SUPPORTS .ruby-version AND OPTIONAL .ruby-gemset FILES
+# DOES NOT SUPPORT Gemfile directives, .rvmrc, etc.
+ruby_changed=`echo "$files_changed" | egrep 'M\t.ruby-version'`
+gemset_changed=`echo "$files_changed" | egrep 'M\t.ruby-gemset'`
+if ([ ! -z "$gemset_changed" ] || [ ! -z "$ruby_changed" ]); then
+  # CHECK FOR RVM ENVIRONMENT FILE
+  # TODO: We could add checks for chruby and rbenv here too
+  ruby_version=`head -1 .ruby-version`
+  ruby_gemset=`head -1 .ruby-gemset`
+  ruby_environment="$HOME/.rvm/environments/$ruby_version"
+  if [ ! $ruby_gemset == "" ]; then
+    ruby_environment="$ruby_version@""$ruby_gemset"
+  fi
+  echo "Your ruby environment has changed to $ruby_environment"
+  rvm_environment="$HOME/.rvm/environments/$ruby_environment"
+  echo "$rvm_environment"
+  if [ -f "$rvm_environment" ]; then
+    echo "Loading RVM environment"
+    source "$rvm_environment"
+    echo -n "Using "
+    ruby --version
+    echo
+    warnline="\n-----------------------------------------------------------\n"
+    warntext="WARNING: Run 'rvm reload' to load your new ruby environment"
+    warning="$warnline$warntext$warnline"
+  else
+    warntext="WARNING: Your ruby environment has changed to $ruby_environment"
+    warning="\n$warntext\n"
+  fi
+fi
 
 # CHECK IF WE NEED TO DO A BUNDLE
-bundle_changed=`echo "$files_changed" | egrep 'M\tGemfile.lock'` 
+bundle_changed=`echo "$files_changed" | egrep 'M\tGemfile.lock'`
 if [ ! -z "$bundle_changed" ]; then
   echo "Your Gemfile.lock has changed, running bundle"
   bundle
@@ -59,3 +92,4 @@ if [ ! -z "$migrations" ]; then
     rm $migration_cleanup
   fi
 fi
+echo -e -n "$warning"
