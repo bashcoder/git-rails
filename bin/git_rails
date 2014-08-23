@@ -75,15 +75,15 @@ if [ ! -z "$migrations" ]; then
       # CHECKOUT DOWN MIGRATION AND SAVE PATH FOR CLEANUP
       git checkout "$old_ref" -- "$migration"
       migration_cleanup="$migration_cleanup $migration"
-      migrate_commands="$migrate_command$migrate_commands"
+      migrate_commands="$migrate_command;$migrate_commands"
     else
-      migrate_commands="$migrate_commands$migrate_command"
+      migrate_commands="$migrate_commands;$migrate_command"
     fi
   done
 
   # RUN THE MIGRATIONS (AND TEST PREPARE)
   test_prepare="require 'rake';Rails.application.load_tasks;Rake::Task['db:test:prepare'].invoke"
-  migrate_commands="$migrate_commands$test_prepare"
+  migrate_commands="$migrate_commands;$test_prepare;"
   echo "$migrate_commands" | bundle exec rails c > /dev/null
 
   # CLEAN UP DOWN MIGRATIONS
